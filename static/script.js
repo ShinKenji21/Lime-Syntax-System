@@ -2,7 +2,8 @@
  * script.js - everything the LIME Lexical Analyzer page does in the browser.
  *
  * Keeps the line numbers next to the editor, sends the code to the server
- * (/analyze) when "Run Lexer" is clicked, draws the tokens in the table
+ * (/analyze) when "Run Lexer" or "Run Syntax" is clicked (Run Syntax also
+ * shows the LL(1) parser's result in the log), draws the tokens in the table
  * (Line:Col, Lexeme, Token, Token Type) and the lexical errors in the
  * Error / Console Log.  "Clear" empties the editor and both outputs.  The "Show" checkboxes hide or show the newline,
  * whitespace, tab, comment and EOF tokens without asking the server again.
@@ -86,14 +87,16 @@ function renderTokenTable() {
     });
 }
 
-// --- Run Lexer ------------------------------------------------------------------
-async function runAnalysis() {
+// --- Run Lexer / Run Syntax ----------------------------------------------------------
+// withSyntax = false: lexical analysis only.  true: lexical, then syntax
+// analysis (the server skips the parser if there are lexical errors).
+async function runAnalysis(withSyntax) {
     const code = document.getElementById('code').value;
 
     const res = await fetch('/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code, syntax: withSyntax })
     });
     const data = await res.json();
 
@@ -105,9 +108,14 @@ async function runAnalysis() {
     consoleLog.innerHTML = '';
 
     if (data.errors.length === 0) {
-        errStatus.innerText = 'Status: OK (0 Errors)';
-        errStatus.style.color = 'var(--primary-lime)';
-        consoleLog.innerHTML = `<div class="log-success">✔ Tokenization succeeded — 0 lexical errors. Recognized ${cachedTokens.length} total tokens.</div>`;
+        const lexMsg = `✔ Tokenization succeeded — 0 lexical errors. Recognized ${cachedTokens.length} total tokens.`;
+        if (!withSyntax) {
+            errStatus.innerText = 'Status: OK (0 Errors)';
+            errStatus.style.color = 'var(--primary-lime)';
+            consoleLog.innerHTML = `<div class="log-success">${lexMsg}</div>`;
+            return;
+        }
+        showSyntaxResult(data.syntax, lexMsg);
         return;
     }
 
@@ -123,6 +131,41 @@ async function runAnalysis() {
             ${e.lexeme ? `<span>Invalid lexeme: <code>${escapeHtml(e.lexeme)}</code></span><br>` : ''}
             <span>Reason: ${escapeHtml(e.message)}</span><br>
             ${e.expected ? `<span style="color: var(--text-muted)">Expected: ${escapeHtml(e.expected)}</span>` : ''}
+        `;
+        consoleLog.appendChild(card);
+    });
+
+    if (withSyntax) {
+        const note = document.createElement('div');
+        note.style.color = 'var(--text-muted)';
+        note.innerText = 'Syntax analysis skipped — fix the lexical errors first.';
+        consoleLog.appendChild(note);
+    }
+}
+
+// Writes the parser's result into the Error / Console Log.
+function showSyntaxResult(syntax, lexMsg) {
+    const consoleLog = document.getElementById('console-log');
+    const errStatus = document.getElementById('error-status');
+    consoleLog.innerHTML = `<div class="log-success">${lexMsg}</div>`;
+
+    if (syntax.errors.length === 0) {
+        errStatus.innerText = 'Status: OK (0 Errors) — Syntax valid';
+        errStatus.style.color = 'var(--primary-lime)';
+        consoleLog.innerHTML +=
+            `<div class="log-success">✔ Syntax analysis succeeded — 0 syntax errors. The program follows the LIME grammar (${syntax.steps} productions applied).</div>`;
+        return;
+    }
+
+    errStatus.innerText = `Status: ${syntax.errors.length} Syntax Error(s)`;
+    errStatus.style.color = 'var(--error-red)';
+    syntax.errors.forEach((e, idx) => {
+        const card = document.createElement('div');
+        card.className = 'log-error-card';
+        card.innerHTML = `
+            <strong>[Error ${idx + 1}] ${escapeHtml(e.kind)} at ${e.line}:${e.col}</strong><br>
+            <span>Reason: ${escapeHtml(e.message)}</span><br>
+            <span style="color: var(--text-muted)">Expected: ${escapeHtml(e.expected)}</span>
         `;
         consoleLog.appendChild(card);
     });

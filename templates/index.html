@@ -17,7 +17,8 @@
             </div>
         </div>
         <div class="actions">
-            <button class="btn-tokenize" onclick="runAnalysis()">▶ Run Lexer</button>
+            <button class="btn-tokenize" onclick="runAnalysis(false)">▶ Run Lexer</button>
+            <button class="btn-blue" onclick="runAnalysis(true)">▶ Run Syntax</button>
             <button class="btn-danger" onclick="clearEditor()">Clear</button>
             <span class="show-label">Show:</span>
             <label class="checkbox-label"><input type="checkbox" class="show-toggle" value="newline"> Newline</label>

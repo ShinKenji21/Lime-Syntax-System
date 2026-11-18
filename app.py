@@ -5,10 +5,13 @@ app.py - the web server for the LIME Lexical Analyzer.
   * /analyze receives LIME code, runs it through the lexer package, and sends
     back every token (including newline, whitespace, tab, comment and EOF
     tokens, which the page can hide) and every lexical error as JSON.
+    With "syntax": true it also runs the LL(1) parser (parser package) on the
+    tokens and adds the result under "syntax".
 """
 
 from flask import Flask, render_template, request, jsonify
 from lexer import Lexer
+from parser import parse
 
 app = Flask(__name__)
 
@@ -44,7 +47,30 @@ def analyze():
         'state': err.state,
     } for err in lx.errors]
 
-    return jsonify({'tokens': tokens_payload, 'errors': errors_payload})
+    result = {'tokens': tokens_payload, 'errors': errors_payload}
+
+    # Syntax analysis runs only when asked for and only on a lexically
+    # clean program (a bad token stream would only give misleading errors).
+    if data.get('syntax'):
+        if lx.errors:
+            result['syntax'] = {'ran': False, 'errors': []}
+        else:
+            p = parse(lx.tokens)
+            result['syntax'] = {
+                'ran': True,
+                'steps': len(p.steps),
+                'errors': [{
+                    'line': err.line,
+                    'col': err.col,
+                    'kind': err.kind,
+                    'message': err.message,
+                    'found': err.found,
+                    'lexeme': err.lexeme,
+                    'expected': err.expected_text,
+                } for err in p.errors],
+            }
+
+    return jsonify(result)
 
 
 if __name__ == '__main__':
