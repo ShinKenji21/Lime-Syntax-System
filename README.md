@@ -1,4 +1,4 @@
-# Lime-Lexical-System
+# Lime-Syntax-System (Lime Lexical Analyzer + Syntax)
 
 Web-based lexical analyzer and tokenizer for the LIME compiler.
 
