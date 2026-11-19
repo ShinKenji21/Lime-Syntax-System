@@ -50,16 +50,14 @@ def analyze():
     result = {'tokens': tokens_payload, 'errors': errors_payload}
 
     # Syntax analysis runs only on a lexically clean program (a bad token
-    # stream would only give misleading errors), unless force_syntax is set:
-    # then it runs on the tokens that remain and the page marks it as forced.
+    # stream would only give misleading errors).
     if data.get('syntax'):
-        if lx.errors and not data.get('force_syntax'):
+        if lx.errors:
             result['syntax'] = {'ran': False, 'errors': []}
         else:
             p = parse(lx.tokens)
             result['syntax'] = {
                 'ran': True,
-                'forced': bool(lx.errors),
                 'steps': len(p.steps),
                 'trace': p.trace,
                 'errors': [{
@@ -77,5 +75,5 @@ def analyze():
 
 
 if __name__ == '__main__':
-    print("Starting LIME Lexical Analyzer (+ Syntax) Web App on http://127.0.0.1:5000")
+    print("Starting Lime Web App on http://127.0.0.1:5000")
     app.run(debug=True, host='127.0.0.1', port=5000)

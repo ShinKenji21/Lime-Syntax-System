@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lime Lexical Analyzer (+ Syntax)</title>
+    <title>Lime</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -13,12 +13,11 @@
         <div class="brand">
             <img src="{{ url_for('static', filename='Lime-logo.png') }}" alt="Lime Logo" class="brand-logo">
             <div class="brand-text">
-                <span class="brand-title">Lime Lexical Analyzer (+ Syntax)</span>
+                <span class="brand-title">Lime</span>
             </div>
         </div>
         <div class="actions">
             <button class="btn-tokenize" onclick="runAnalysis()">▶ Run</button>
-            <label class="checkbox-label" title="Run the syntax analysis on the remaining tokens even when there are lexical errors"><input type="checkbox" id="force-syntax"> Syntax on lexical errors</label>
             <button class="btn-danger" onclick="clearEditor()">Clear</button>
             <span class="show-label">Show:</span>
             <label class="checkbox-label"><input type="checkbox" class="show-toggle" value="newline"> Newline</label>

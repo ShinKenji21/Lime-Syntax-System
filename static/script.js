@@ -145,17 +145,14 @@ function updateCount() {
 
 // --- Run ------------------------------------------------------------------------------
 // One button runs both phases: the lexical analysis, then the syntax analysis.
-// The server skips the parser when there are lexical errors, unless the
-// "Syntax on lexical errors" box is ticked: then it parses the tokens that
-// remain and the result is shown with a warning.
+// The server skips the parser when there are lexical errors.
 async function runAnalysis() {
     const code = document.getElementById('code').value;
-    const force = document.getElementById('force-syntax').checked;
 
     const res = await fetch('/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, syntax: true, force_syntax: force })
+        body: JSON.stringify({ code, syntax: true })
     });
     const data = await res.json();
 
@@ -196,40 +193,27 @@ async function runAnalysis() {
 
     const note = document.createElement('div');
     note.style.color = 'var(--text-muted)';
-    if (!data.syntax.ran) {
-        note.innerText = 'Syntax analysis skipped — fix the lexical errors first.';
-        consoleLog.appendChild(note);
-        return;
-    }
-
-    // Forced: syntax ran on the tokens left after the lexical errors.
-    note.innerHTML = '⚠ Syntax checked on the remaining tokens only — the lexical errors above ' +
-        'removed some tokens, so this result may be inaccurate.';
+    note.innerText = 'Syntax analysis skipped — fix the lexical errors first.';
     consoleLog.appendChild(note);
-    appendSyntaxResult(data.syntax, data.errors.length);
 }
 
 // Adds the parser's result to the Error / Console Log and sets the status.
-// lexErrors > 0 means the syntax analysis was forced past lexical errors.
-function appendSyntaxResult(syntax, lexErrors = 0) {
+function appendSyntaxResult(syntax) {
     const consoleLog = document.getElementById('console-log');
     const errStatus = document.getElementById('error-status');
-    const lexPart = lexErrors ? `${lexErrors} Lexical Error(s), ` : '';
 
     if (syntax.errors.length === 0) {
-        errStatus.innerText = lexErrors
-            ? `Status: ${lexPart}0 Syntax Errors (forced)`
-            : 'Status: OK (0 Errors) — Syntax valid';
-        errStatus.style.color = lexErrors ? 'var(--error-red)' : 'var(--primary-lime)';
+        errStatus.innerText = 'Status: OK (0 Errors) — Syntax valid';
+        errStatus.style.color = 'var(--primary-lime)';
         const ok = document.createElement('div');
         ok.className = 'log-success';
         ok.innerText = `✔ Syntax analysis succeeded — 0 syntax errors. ` +
-            `The ${lexErrors ? 'remaining tokens follow' : 'program follows'} the LIME grammar (${syntax.steps} productions applied).`;
+            `The program follows the LIME grammar (${syntax.steps} productions applied).`;
         consoleLog.appendChild(ok);
         return;
     }
 
-    errStatus.innerText = `Status: ${lexPart}${syntax.errors.length} Syntax Error(s)${lexErrors ? ' (forced)' : ''}`;
+    errStatus.innerText = `Status: ${syntax.errors.length} Syntax Error(s)`;
     errStatus.style.color = 'var(--error-red)';
     syntax.errors.forEach((e, idx) => {
         const card = document.createElement('div');
