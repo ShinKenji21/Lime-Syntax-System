@@ -59,6 +59,7 @@ def analyze():
             result['syntax'] = {
                 'ran': True,
                 'steps': len(p.steps),
+                'trace': p.trace,
                 'errors': [{
                     'line': err.line,
                     'col': err.col,

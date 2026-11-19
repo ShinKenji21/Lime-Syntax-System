@@ -11,6 +11,12 @@
 
 // Tokens from the last run, so the Show checkboxes can redraw instantly.
 let cachedTokens = [];
+let shownTokenCount = 0;
+
+// Parse trace from the last Run Syntax, and which tab is showing.
+let cachedTrace = [];
+let currentView = 'tokens';
+const TRACE_EMPTY_MSG = "Click '▶ Run Syntax' to display the parse trace.";
 
 // Which checkbox controls which token names.
 const TOGGLE_GROUPS = {
@@ -64,7 +70,8 @@ function renderTokenTable() {
     const shown = cachedTokens.filter(t => !hidden.has(t.token));
     tbody.innerHTML = '';
 
-    document.getElementById('token-count').innerText = `${shown.length} Tokens`;
+    shownTokenCount = shown.length;
+    updateCount();
 
     if (shown.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="empty-table-msg">No tokens generated.</td></tr>';
@@ -87,6 +94,55 @@ function renderTokenTable() {
     });
 }
 
+// --- Parse trace ------------------------------------------------------------------
+// Each row is one step of the LL(1) parser: the stack before the step, the
+// lookahead token, and what it did (Prod # = the production chosen from the
+// PREDICT set, like the lexer's final state number).
+function renderTraceTable(emptyMsg) {
+    const tbody = document.getElementById('trace-table');
+    tbody.innerHTML = '';
+    if (cachedTrace.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-table-msg">${escapeHtml(emptyMsg || TRACE_EMPTY_MSG)}</td></tr>`;
+        updateCount();
+        return;
+    }
+    cachedTrace.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = `trace-${s.kind}`;
+        const look = s.lookahead === '$'
+            ? '<code>$</code>'
+            : `<code>${escapeHtml(s.lookahead)}</code>` +
+              (s.lexeme !== s.lookahead ? ` <span style="color: var(--text-muted)">${escapeHtml(s.lexeme)}</span>` : '') +
+              ` <span style="color: var(--text-muted)">(${s.line}:${s.col})</span>`;
+        tr.innerHTML = `
+            <td>${s.step}</td>
+            <td class="trace-stack">${escapeHtml(s.stack)}</td>
+            <td>${look}</td>
+            <td>${s.production !== null ? s.production : ''}</td>
+            <td><code style="white-space: pre-wrap">${escapeHtml(s.action)}</code></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    updateCount();
+}
+
+// Switches the right pane between the token table and the parse trace.
+function showView(view) {
+    currentView = view;
+    document.getElementById('tokens-view').hidden = view !== 'tokens';
+    document.getElementById('trace-view').hidden = view !== 'trace';
+    document.querySelectorAll('.tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.view === view));
+    updateCount();
+}
+
+function updateCount() {
+    const predicts = cachedTrace.filter(s => s.kind === 'predict').length;
+    document.getElementById('token-count').innerText = currentView === 'tokens'
+        ? `${shownTokenCount} Tokens`
+        : `${cachedTrace.length} Steps (${predicts} Productions)`;
+}
+
 // --- Run Lexer / Run Syntax ----------------------------------------------------------
 // withSyntax = false: lexical analysis only.  true: lexical, then syntax
 // analysis (the server skips the parser if there are lexical errors).
@@ -102,6 +158,19 @@ async function runAnalysis(withSyntax) {
 
     cachedTokens = data.tokens || [];
     renderTokenTable();
+
+    // The trace belongs to this run only.
+    cachedTrace = (withSyntax && data.syntax && data.syntax.trace) || [];
+    if (!withSyntax) {
+        renderTraceTable();
+        showView('tokens');
+    } else if (!data.syntax.ran) {
+        renderTraceTable('Syntax analysis skipped — fix the lexical errors first.');
+        showView('tokens');
+    } else {
+        renderTraceTable();
+        showView('trace');
+    }
 
     const consoleLog = document.getElementById('console-log');
     const errStatus = document.getElementById('error-status');
@@ -175,6 +244,10 @@ function showSyntaxResult(syntax, lexMsg) {
 // Empties the editor and puts the token table and the log back to "ready".
 function clearEditor() {
     cachedTokens = [];
+    shownTokenCount = 0;
+    cachedTrace = [];
+    renderTraceTable();
+    showView('tokens');
     document.getElementById('code').value = '';
     updateLineNumbers();
     document.getElementById('token-table').innerHTML =

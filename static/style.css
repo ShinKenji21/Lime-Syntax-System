@@ -265,6 +265,45 @@ textarea.code-editor {
 }
 
 /* Table Output Styling */
+/* Token Output / Parse Trace tabs in the right pane header */
+.tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.tab {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font: inherit;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.tab.active {
+    background: var(--bg-card);
+    border-color: var(--border-header-lime);
+    color: #15803d;
+}
+
+.trace-stack {
+    font-family: Consolas, monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    max-width: 320px;
+    overflow-wrap: anywhere;
+}
+
+.trace-predict { color: var(--primary-teal); }
+.trace-match { color: var(--text-muted); }
+.trace-accept { color: var(--primary-lime); font-weight: 700; }
+.trace-error { background: var(--error-bg); color: var(--error-red); font-weight: 700; }
+
+.table-container[hidden] {
+    display: none;
+}
+
 .table-container {
     flex: 1;
     overflow-y: auto;

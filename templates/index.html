@@ -50,10 +50,33 @@
             <!-- Top Right: Token Output Table -->
             <div class="pane">
                 <div class="pane-header">
-                    <span>Token Output</span>
+                    <span class="tabs">
+                        <button class="tab active" data-view="tokens" onclick="showView('tokens')">Token Output</button>
+                        <button class="tab" data-view="trace" onclick="showView('trace')">Parse Trace</button>
+                    </span>
                     <span id="token-count" class="pane-accent-subtext">0 Tokens</span>
                 </div>
-                <div class="table-container">
+                <div class="table-container" id="trace-view" hidden>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Step</th>
+                                <th>Stack (top first)</th>
+                                <th>Lookahead</th>
+                                <th>Prod #</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trace-table">
+                            <tr>
+                                <td colspan="5" class="empty-table-msg">
+                                    Click '▶ Run Syntax' to display the parse trace.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-container" id="tokens-view">
                     <table>
                         <thead>
                             <tr>
