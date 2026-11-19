@@ -12,7 +12,7 @@ tokenize(raise_on_error=True) raises the first one afterwards.
 from .source import Source
 from .definitions import numbers, letters
 from .reserved import RW_START, SYMBOL_START
-from .tokens import (make_token, NEWLINE, SPACE, TAB, EOF,
+from .tokens import (make_token, ID, NEWLINE, SPACE, TAB, EOF,
                      CAT_NEWLINE, CAT_WHITESPACE, CAT_EOF)
 from . import errors as E
 from .scan_words import scan_word, scan_identifier, scan_underscore
@@ -27,6 +27,7 @@ class Lexer:
         self.src = Source(text)
         self.tokens = []
         self.errors = []
+        self.symbols = {}     # symbol table: identifier name -> its number
 
     def tokenize(self, raise_on_error=False):
         src, tokens, errors = self.src, self.tokens, self.errors
@@ -68,11 +69,24 @@ class Lexer:
                 errors.append(E.illegal_character(src, start))
                 src.advance()
 
+        self._number_identifiers()
+
         if raise_on_error and errors:
             first = errors[0]
             first.errors = errors
             raise first
         return tokens
+
+    def _number_identifiers(self):
+        """Symbol table: each distinct identifier name gets a number the
+        first time it appears (id1, id2, ...); the same name again reuses its
+        number.  Names are case-sensitive, so score and Score differ.  Scopes
+        are not known here, so the number belongs to the spelling."""
+        for tok in self.tokens:
+            if tok.type == ID:
+                if tok.lexeme not in self.symbols:
+                    self.symbols[tok.lexeme] = len(self.symbols) + 1
+                tok.id_number = self.symbols[tok.lexeme]
 
 
 def tokenize(text, raise_on_error=True):

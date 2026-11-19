@@ -33,6 +33,8 @@ class Token:
     line/col  where it starts (1-based)
     category  token type, e.g. Declaration, Identifier, Literal
     final_state / path  the transition-diagram states it went through
+    id_number  for an id token: its number in the symbol table (1, 2, ...),
+               so the same name always shows as the same id1, id2, ...
     """
 
     def __init__(self, ttype, lexeme, line, col, category,
@@ -44,6 +46,15 @@ class Token:
         self.category = category
         self.final_state = final_state
         self.path = path or []
+        self.id_number = None
+
+    @property
+    def label(self):
+        """Token name as shown in the table: id1, id2, ... for identifiers,
+        otherwise the token name itself.  The parser still uses .type (id)."""
+        if self.type == ID and self.id_number is not None:
+            return "%s%d" % (ID, self.id_number)
+        return self.type
 
     def __repr__(self):
         return "Token(%s, %r, %d:%d, %s)" % (self.type, self.lexeme,

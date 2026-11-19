@@ -34,5 +34,10 @@ written as one branch per state:
   grammar, to check the paper's tables. Run `python -m parser.ll1` to print
   them and check the grammar for LL(1) conflicts (there are none).
 
-In the page, **▶ Run Lexer** only tokenizes. **▶ Run Syntax** tokenizes and then
-parses; if there are lexical errors, the parser is skipped.
+In the page, **▶ Run** does the lexical analysis and then the syntax analysis.
+If there are lexical errors, the syntax analysis is skipped, unless the
+**Syntax on lexical errors** box is ticked: then it runs on the tokens that
+remain and the result is marked with a warning (it may be inaccurate, because
+the lexer dropped the invalid parts). Identifiers are
+numbered in the lexer's symbol table, so the Token column shows `id1`, `id2`,
+... (the same name always gets the same number).

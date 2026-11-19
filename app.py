@@ -31,7 +31,7 @@ def analyze():
         'line': tok.line,
         'col': tok.col,
         'lexeme': tok.lexeme,
-        'token': tok.type,
+        'token': tok.label,          # id1, id2, ... for identifiers
         'token_type': tok.category,
         'final_state': tok.final_state,
     } for tok in lx.tokens]
@@ -49,15 +49,17 @@ def analyze():
 
     result = {'tokens': tokens_payload, 'errors': errors_payload}
 
-    # Syntax analysis runs only when asked for and only on a lexically
-    # clean program (a bad token stream would only give misleading errors).
+    # Syntax analysis runs only on a lexically clean program (a bad token
+    # stream would only give misleading errors), unless force_syntax is set:
+    # then it runs on the tokens that remain and the page marks it as forced.
     if data.get('syntax'):
-        if lx.errors:
+        if lx.errors and not data.get('force_syntax'):
             result['syntax'] = {'ran': False, 'errors': []}
         else:
             p = parse(lx.tokens)
             result['syntax'] = {
                 'ran': True,
+                'forced': bool(lx.errors),
                 'steps': len(p.steps),
                 'trace': p.trace,
                 'errors': [{

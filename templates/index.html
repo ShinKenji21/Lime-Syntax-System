@@ -17,8 +17,8 @@
             </div>
         </div>
         <div class="actions">
-            <button class="btn-tokenize" onclick="runAnalysis(false)">▶ Run Lexer</button>
-            <button class="btn-blue" onclick="runAnalysis(true)">▶ Run Syntax</button>
+            <button class="btn-tokenize" onclick="runAnalysis()">▶ Run</button>
+            <label class="checkbox-label" title="Run the syntax analysis on the remaining tokens even when there are lexical errors"><input type="checkbox" id="force-syntax"> Syntax on lexical errors</label>
             <button class="btn-danger" onclick="clearEditor()">Clear</button>
             <span class="show-label">Show:</span>
             <label class="checkbox-label"><input type="checkbox" class="show-toggle" value="newline"> Newline</label>
@@ -70,7 +70,7 @@
                         <tbody id="trace-table">
                             <tr>
                                 <td colspan="5" class="empty-table-msg">
-                                    Click '▶ Run Syntax' to display the parse trace.
+                                    Click '▶ Run' to display the parse trace.
                                 </td>
                             </tr>
                         </tbody>
@@ -89,7 +89,7 @@
                         <tbody id="token-table">
                             <tr>
                                 <td colspan="4" class="empty-table-msg">
-                                    Click '▶ Run Lexer' to display generated tokens.
+                                    Click '▶ Run' to display generated tokens.
                                 </td>
                             </tr>
                         </tbody>
@@ -106,7 +106,7 @@
                 <span id="error-status" class="status-text">Status: Ready</span>
             </div>
             <div class="console-log" id="console-log">
-                <span class="log-success">System initialized. Ready to tokenize LIME code.</span>
+                <span class="log-success">System initialized. Ready to analyze LIME code.</span>
             </div>
         </div>
 

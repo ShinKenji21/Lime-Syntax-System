@@ -2,8 +2,8 @@
  * script.js - everything the LIME Lexical Analyzer page does in the browser.
  *
  * Keeps the line numbers next to the editor, sends the code to the server
- * (/analyze) when "Run Lexer" or "Run Syntax" is clicked (Run Syntax also
- * shows the LL(1) parser's result in the log), draws the tokens in the table
+ * (/analyze) when "Run" is clicked (lexical, then syntax analysis; both
+ * results go to the log), draws the tokens in the table
  * (Line:Col, Lexeme, Token, Token Type) and the lexical errors in the
  * Error / Console Log.  "Clear" empties the editor and both outputs.  The "Show" checkboxes hide or show the newline,
  * whitespace, tab, comment and EOF tokens without asking the server again.
@@ -13,10 +13,10 @@
 let cachedTokens = [];
 let shownTokenCount = 0;
 
-// Parse trace from the last Run Syntax, and which tab is showing.
+// Parse trace from the last Run, and which tab is showing.
 let cachedTrace = [];
 let currentView = 'tokens';
-const TRACE_EMPTY_MSG = "Click '▶ Run Syntax' to display the parse trace.";
+const TRACE_EMPTY_MSG = "Click '▶ Run' to display the parse trace.";
 
 // Which checkbox controls which token names.
 const TOGGLE_GROUPS = {
@@ -143,52 +143,42 @@ function updateCount() {
         : `${cachedTrace.length} Steps (${predicts} Productions)`;
 }
 
-// --- Run Lexer / Run Syntax ----------------------------------------------------------
-// withSyntax = false: lexical analysis only.  true: lexical, then syntax
-// analysis (the server skips the parser if there are lexical errors).
-async function runAnalysis(withSyntax) {
+// --- Run ------------------------------------------------------------------------------
+// One button runs both phases: the lexical analysis, then the syntax analysis.
+// The server skips the parser when there are lexical errors, unless the
+// "Syntax on lexical errors" box is ticked: then it parses the tokens that
+// remain and the result is shown with a warning.
+async function runAnalysis() {
     const code = document.getElementById('code').value;
+    const force = document.getElementById('force-syntax').checked;
 
     const res = await fetch('/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, syntax: withSyntax })
+        body: JSON.stringify({ code, syntax: true, force_syntax: force })
     });
     const data = await res.json();
 
     cachedTokens = data.tokens || [];
     renderTokenTable();
 
-    // The trace belongs to this run only.
-    cachedTrace = (withSyntax && data.syntax && data.syntax.trace) || [];
-    if (!withSyntax) {
-        renderTraceTable();
-        showView('tokens');
-    } else if (!data.syntax.ran) {
-        renderTraceTable('Syntax analysis skipped — fix the lexical errors first.');
-        showView('tokens');
-    } else {
-        renderTraceTable();
-        showView('trace');
-    }
+    // The trace belongs to this run only.  The page stays on the tab being viewed.
+    cachedTrace = (data.syntax && data.syntax.trace) || [];
+    renderTraceTable(data.syntax.ran ? null
+        : 'Syntax analysis skipped — fix the lexical errors first.');
 
     const consoleLog = document.getElementById('console-log');
     const errStatus = document.getElementById('error-status');
     consoleLog.innerHTML = '';
 
     if (data.errors.length === 0) {
-        const lexMsg = `✔ Tokenization succeeded — 0 lexical errors. Recognized ${cachedTokens.length} total tokens.`;
-        if (!withSyntax) {
-            errStatus.innerText = 'Status: OK (0 Errors)';
-            errStatus.style.color = 'var(--primary-lime)';
-            consoleLog.innerHTML = `<div class="log-success">${lexMsg}</div>`;
-            return;
-        }
-        showSyntaxResult(data.syntax, lexMsg);
+        consoleLog.innerHTML =
+            `<div class="log-success">✔ Lexical analysis succeeded — 0 lexical errors. Recognized ${cachedTokens.length} total tokens.</div>`;
+        appendSyntaxResult(data.syntax);
         return;
     }
 
-    errStatus.innerText = `Status: ${data.errors.length} Error(s) — ${cachedTokens.length} valid token(s)`;
+    errStatus.innerText = `Status: ${data.errors.length} Lexical Error(s) — syntax skipped`;
     errStatus.style.color = 'var(--error-red)';
 
     data.errors.forEach((e, idx) => {
@@ -204,35 +194,48 @@ async function runAnalysis(withSyntax) {
         consoleLog.appendChild(card);
     });
 
-    if (withSyntax) {
-        const note = document.createElement('div');
-        note.style.color = 'var(--text-muted)';
+    const note = document.createElement('div');
+    note.style.color = 'var(--text-muted)';
+    if (!data.syntax.ran) {
         note.innerText = 'Syntax analysis skipped — fix the lexical errors first.';
         consoleLog.appendChild(note);
-    }
-}
-
-// Writes the parser's result into the Error / Console Log.
-function showSyntaxResult(syntax, lexMsg) {
-    const consoleLog = document.getElementById('console-log');
-    const errStatus = document.getElementById('error-status');
-    consoleLog.innerHTML = `<div class="log-success">${lexMsg}</div>`;
-
-    if (syntax.errors.length === 0) {
-        errStatus.innerText = 'Status: OK (0 Errors) — Syntax valid';
-        errStatus.style.color = 'var(--primary-lime)';
-        consoleLog.innerHTML +=
-            `<div class="log-success">✔ Syntax analysis succeeded — 0 syntax errors. The program follows the LIME grammar (${syntax.steps} productions applied).</div>`;
         return;
     }
 
-    errStatus.innerText = `Status: ${syntax.errors.length} Syntax Error(s)`;
+    // Forced: syntax ran on the tokens left after the lexical errors.
+    note.innerHTML = '⚠ Syntax checked on the remaining tokens only — the lexical errors above ' +
+        'removed some tokens, so this result may be inaccurate.';
+    consoleLog.appendChild(note);
+    appendSyntaxResult(data.syntax, data.errors.length);
+}
+
+// Adds the parser's result to the Error / Console Log and sets the status.
+// lexErrors > 0 means the syntax analysis was forced past lexical errors.
+function appendSyntaxResult(syntax, lexErrors = 0) {
+    const consoleLog = document.getElementById('console-log');
+    const errStatus = document.getElementById('error-status');
+    const lexPart = lexErrors ? `${lexErrors} Lexical Error(s), ` : '';
+
+    if (syntax.errors.length === 0) {
+        errStatus.innerText = lexErrors
+            ? `Status: ${lexPart}0 Syntax Errors (forced)`
+            : 'Status: OK (0 Errors) — Syntax valid';
+        errStatus.style.color = lexErrors ? 'var(--error-red)' : 'var(--primary-lime)';
+        const ok = document.createElement('div');
+        ok.className = 'log-success';
+        ok.innerText = `✔ Syntax analysis succeeded — 0 syntax errors. ` +
+            `The ${lexErrors ? 'remaining tokens follow' : 'program follows'} the LIME grammar (${syntax.steps} productions applied).`;
+        consoleLog.appendChild(ok);
+        return;
+    }
+
+    errStatus.innerText = `Status: ${lexPart}${syntax.errors.length} Syntax Error(s)${lexErrors ? ' (forced)' : ''}`;
     errStatus.style.color = 'var(--error-red)';
     syntax.errors.forEach((e, idx) => {
         const card = document.createElement('div');
         card.className = 'log-error-card';
         card.innerHTML = `
-            <strong>[Error ${idx + 1}] ${escapeHtml(e.kind)} at ${e.line}:${e.col}</strong><br>
+            <strong>[Syntax Error ${idx + 1}] ${escapeHtml(e.kind)} at ${e.line}:${e.col}</strong><br>
             <span>Reason: ${escapeHtml(e.message)}</span><br>
             <span style="color: var(--text-muted)">Expected: ${escapeHtml(e.expected)}</span>
         `;
@@ -251,10 +254,10 @@ function clearEditor() {
     document.getElementById('code').value = '';
     updateLineNumbers();
     document.getElementById('token-table').innerHTML =
-        '<tr><td colspan="4" class="empty-table-msg">Click \'▶ Run Lexer\' to display generated tokens.</td></tr>';
+        '<tr><td colspan="4" class="empty-table-msg">Click \'▶ Run\' to display generated tokens.</td></tr>';
     document.getElementById('token-count').innerText = '0 Tokens';
     document.getElementById('console-log').innerHTML =
-        '<span class="log-success">System initialized. Ready to tokenize LIME code.</span>';
+        '<span class="log-success">System initialized. Ready to analyze LIME code.</span>';
     const errStatus = document.getElementById('error-status');
     errStatus.innerText = 'Status: Ready';
     errStatus.style.color = '';
